@@ -19,6 +19,7 @@ module Plux
       child, parent = IO.pipe
 
       @pid = fork do
+        at_exit{ delete_server }
         child.close
         UNIXServer.open(Plux.server_file(name)) do |serv|
           parent.close
@@ -35,8 +36,19 @@ module Plux
 
       file.rewind
       file.write(pid)
+      Process.detach(pid)
     ensure
       file.flock(File::LOCK_UN)
+    end
+
+    def close
+      Process.kill('TERM', pid) rescue Errno::ESRCH
+    end
+
+    def delete_server
+      [:server_file, :pid_file].each do |file|
+        File.delete(Plux.send(file, name))
+      end
     end
 
     class Worker
@@ -47,7 +59,7 @@ module Plux
           while line = client.gets
             pp line
           end
-          pp 'end'
+          pp "#{t.object_id} end"
         end
       end
     end
