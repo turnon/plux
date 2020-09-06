@@ -3,6 +3,10 @@ module Plux
   class Server
     attr_reader :name, :pid
 
+    Active = {}
+    Lock = Mutex.new
+    at_exit{ Active.values.each(&:close) }
+
     def initialize(name)
       @name = name
 
@@ -37,11 +41,13 @@ module Plux
       file.rewind
       file.write(pid)
       Process.detach(pid)
+      Lock.synchronize{ Active[name] = self }
     ensure
       file.flock(File::LOCK_UN)
     end
 
     def close
+      Lock.synchronize{ Active.delete(name) }
       Process.kill('TERM', pid) rescue Errno::ESRCH
     end
 
