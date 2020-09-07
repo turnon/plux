@@ -7,15 +7,15 @@ module Plux
     Lock = Mutex.new
     at_exit{ Active.values.each(&:close) }
 
-    def initialize(name)
+    def initialize(name, block)
       @name = name
 
       File.open(Plux.pid_file(name), File::RDWR|File::CREAT, 0644) do |file|
-        start_server_if_not_pid(file)
+        start_server_if_not_pid(file, block)
       end
     end
 
-    def start_server_if_not_pid(file)
+    def start_server_if_not_pid(file, block)
       file.flock(File::LOCK_EX)
       @pid = file.read.to_i
       return unless pid == 0
@@ -27,9 +27,10 @@ module Plux
         child.close
         UNIXServer.open(Plux.server_file(name)) do |serv|
           parent.close
+          worker = Class.new(&block).new
           loop do
             socket = serv.accept
-            Worker.new(socket)
+            Worker.new(socket, worker)
           end
         end
       end
@@ -58,12 +59,12 @@ module Plux
     end
 
     class Worker
-      def initialize(socket)
+      def initialize(socket, worker)
         t = Thread.new do
           client = socket.recv_io
           socket.close
           while line = client.gets
-            pp line
+            worker.work(line)
           end
           pp "#{t.object_id} end"
         end

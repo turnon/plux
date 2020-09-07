@@ -16,6 +16,10 @@ module Plux
     def server_file(server_name)
       File.join(dir, "#{server_name}.so")
     end
+
+    def worker(name, &block)
+      Server.new(name, block)
+    end
   end
 
   FileUtils.mkdir_p(self.dir)
