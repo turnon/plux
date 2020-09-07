@@ -5,8 +5,9 @@ module Plux
     def initialize(server_name)
       @server_name = server_name
       UNIXSocket.open(Plux.server_file(server_name)) do |c|
-        @reader, @writer = IO.pipe
-        c.send_io(@reader)
+        reader, @writer = IO.pipe
+        c.send_io(reader)
+        reader.close
       end
     end
 
@@ -15,7 +16,6 @@ module Plux
     end
 
     def close
-      @reader.close
       @writer.close
     end
   end

@@ -13,8 +13,23 @@ module Plux
       File.join(dir, "#{server_name}.pid")
     end
 
+    def lock_pid_file(name)
+      File.open(pid_file(name), File::RDWR|File::CREAT, 0644) do |file|
+        begin
+          file.flock(File::LOCK_EX)
+          yield file
+        ensure
+          file.flock(File::LOCK_UN)
+        end
+      end
+    end
+
     def server_file(server_name)
       File.join(dir, "#{server_name}.so")
+    end
+
+    def worker(name, &block)
+      Server.new(name, block)
     end
   end
 
