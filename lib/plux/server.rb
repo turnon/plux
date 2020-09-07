@@ -52,6 +52,12 @@ module Plux
       Process.kill('TERM', pid) rescue Errno::ESRCH
     end
 
+    def connect
+      Client.new(name)
+    end
+
+    private
+
     def delete_server
       [:server_file, :pid_file].each do |file|
         File.delete(Plux.send(file, name))
