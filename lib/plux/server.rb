@@ -4,19 +4,27 @@ module Plux
     attr_reader :name, :pid
 
     Active = {}
-    Lock = Mutex.new
     at_exit{ Active.values.each(&:close) }
 
     def initialize(name, block)
       @name = name
 
-      File.open(Plux.pid_file(name), File::RDWR|File::CREAT, 0644) do |file|
+      Plux.lock_pid_file(name) do |file|
         start_server_if_not_pid(file, block)
       end
     end
 
+    def close
+      Process.kill('TERM', pid) rescue Errno::ESRCH
+    end
+
+    def connect
+      Client.new(name)
+    end
+
+    private
+
     def start_server_if_not_pid(file, block)
-      file.flock(File::LOCK_EX)
       @pid = file.read.to_i
       return unless pid == 0
 
@@ -42,21 +50,8 @@ module Plux
       file.rewind
       file.write(pid)
       Process.detach(pid)
-      Lock.synchronize{ Active[name] = self }
-    ensure
-      file.flock(File::LOCK_UN)
+      Active[name] = self
     end
-
-    def close
-      Lock.synchronize{ Active.delete(name) }
-      Process.kill('TERM', pid) rescue Errno::ESRCH
-    end
-
-    def connect
-      Client.new(name)
-    end
-
-    private
 
     def delete_server
       [:server_file, :pid_file].each do |file|
