@@ -6,12 +6,15 @@ module Plux
     Active = {}
     at_exit{ Active.values.each(&:close) }
 
-    def initialize(name, block)
+    def initialize(name)
       @name = name
+    end
 
+    def boot(block)
       Plux.lock_pid_file(name) do |file|
         start_server_if_not_pid(file, block)
       end
+      self
     end
 
     def close

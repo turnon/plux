@@ -29,7 +29,7 @@ module Plux
     end
 
     def worker(name, &block)
-      Server.new(name, block)
+      Server.new(name).boot(block)
     end
   end
 
