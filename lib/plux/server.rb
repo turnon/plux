@@ -32,6 +32,7 @@ module Plux
 
       @pid = fork do
         at_exit{ delete_server }
+        file.close
         child.close
         UNIXServer.open(Plux.server_file(name)) do |serv|
           parent.close
