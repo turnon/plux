@@ -1,8 +1,6 @@
 # Plux
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/plux`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+An easy unixsocket server
 
 ## Installation
 
@@ -22,7 +20,32 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+# start one and only process named 'abc',
+# no matter the code below is called how many times in whatever processes/threads
+server = Plux.worker(:abc) do
+
+  # prepare resources like mq/db, to handle requests
+  def initialize
+    # @db = ...
+  end
+
+  # threads call this method to deal with clients' message
+  def work(msg)
+    # @db << parse(msg)
+  end
+end
+
+# five threads will be started to handle these clients,
+# and finished once their counterparts call close
+5.times do |n|
+  Thread.new do
+    client = server.connect
+    client.puts "hello #{n}"
+    client.close
+  end
+end
+```
 
 ## Development
 
