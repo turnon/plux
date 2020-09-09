@@ -1,7 +1,8 @@
+require "fileutils"
+require "socket"
 require "plux/version"
 require "plux/server"
 require "plux/client"
-require "fileutils"
 
 module Plux
 

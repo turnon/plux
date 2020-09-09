@@ -72,7 +72,6 @@ module Plux
             worker.work(line)
           end
           client.close
-          pp "#{t.object_id} end"
         end
       end
     end
