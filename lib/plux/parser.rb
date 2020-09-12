@@ -5,54 +5,45 @@ module Plux
     SEPERATOR = '.'.freeze
 
     def initialize
-      @break_word = nil
+      @broken = ''
     end
 
     def parse(stream)
-      if @break_word
-        continue_read(stream)
-      else
-        auto_read(stream, 0, [])
-      end
-    end
-
-    def continue_read(stream)
+      stream = @broken.concat(stream)
       result = []
-      msg = stream[0, @remain]
-      act_len = msg.length
-      @break_word.concat(msg)
 
-      if act_len == @remain
-        result << @break_word
-        @break_word = nil
-        return auto_read(stream, act_len, result)
-      end
-
-      @remain -= act_len
-      result
-    end
-
-    def auto_read(stream, start, result)
-      pending = stream.length - start
+      start = 0
+      pending = stream.length
 
       until start >= pending
         sep_idx = stream.index(SEPERATOR, start)
-        est_len = stream[start, sep_idx - start].to_i(SYSTEM)
 
+        unless sep_idx
+          len_str = stream[start, pending]
+          @broken.clear
+          @broken.concat(len_str)
+          return result
+        end
+
+        len_str = stream[start, sep_idx - start]
+        est_len = len_str.to_i(SYSTEM)
         start = sep_idx + 1
         msg = stream[start, est_len]
-
         act_len = msg.length
-        start += act_len
 
-        if act_len == est_len
-          result << msg
-        else
-          @break_word = msg
-          @remain = est_len - act_len
+        if act_len < est_len
+          @broken.clear
+          @broken.concat(len_str)
+          @broken.concat(SEPERATOR)
+          @broken.concat(msg)
+          return result
         end
+
+        result << msg
+        start += act_len
       end
 
+      @broken.clear
       result
     end
 
