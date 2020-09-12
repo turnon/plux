@@ -1,46 +1,49 @@
 module Plux
   class Parser
 
-    LENGTH_LEN = 3
+    SYSTEM = 36
+    SEPERATOR = '.'.freeze
 
     def initialize
-      @break_word= nil
+      @broken = ''
     end
 
     def parse(stream)
+      stream = @broken.concat(stream)
       result = []
 
-      if @break_word
-        msg = stream[0, @remain]
-        result << (@break_word + msg)
-        @break_word = nil
-        start = @remain
-      else
-        start = 0
-      end
+      start = 0
+      pending = stream.length
 
-      auto_read(stream, start, result)
-    end
+      until start >= pending
+        sep_idx = stream.index(SEPERATOR, start)
 
-    def auto_read(stream, start, result)
-      pending = stream.length - start
-      read = 0
-
-      until read >= pending
-        est_len = stream[start, LENGTH_LEN].to_i
-        msg = stream[start + LENGTH_LEN, est_len]
-
-        act_len = msg.length
-        start = read = (read + LENGTH_LEN + act_len)
-
-        if act_len == est_len
-          result << msg
-        else
-          @break_word = msg
-          @remain = est_len - act_len
+        unless sep_idx
+          len_str = stream[start, pending]
+          @broken.clear
+          @broken.concat(len_str)
+          return result
         end
+
+        len_str = stream[start, sep_idx - start]
+        est_len = len_str.to_i(SYSTEM)
+        start = sep_idx + 1
+        msg = stream[start, est_len]
+        act_len = msg.length
+
+        if act_len < est_len
+          @broken.clear
+          @broken.concat(len_str)
+          @broken.concat(SEPERATOR)
+          @broken.concat(msg)
+          return result
+        end
+
+        result << msg
+        start += act_len
       end
 
+      @broken.clear
       result
     end
 
