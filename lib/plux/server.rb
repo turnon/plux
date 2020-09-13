@@ -65,13 +65,20 @@ module Plux
 
     class Worker
       def initialize(socket, worker)
+        par = Parser.new
         t = Thread.new do
-          client = socket.recv_io
-          socket.close
-          while line = client.gets
-            worker.work(line)
+          loop do
+            begin
+              stream = socket.read_nonblock(Parser::STREAM_MAX_LEN)
+            rescue IO::WaitReadable
+              IO.select([socket])
+              retry
+            end
+            par.decode(stream).each do |msg|
+              worker.work(msg)
+            end
           end
-          client.close
+          socket.close
         end
       end
     end

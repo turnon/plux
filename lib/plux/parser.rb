@@ -3,12 +3,13 @@ module Plux
 
     SYSTEM = 36
     SEPERATOR = '.'.freeze
+    STREAM_MAX_LEN = 4096
 
     def initialize
       @broken = ''
     end
 
-    def parse(stream)
+    def decode(stream)
       stream = @broken.concat(stream)
       result = []
 
@@ -45,6 +46,20 @@ module Plux
 
       @broken.clear
       result
+    end
+
+    def self.encode(msg)
+      len = msg.length.to_s(SYSTEM)
+
+      msg = "#{len}#{SEPERATOR}#{msg}"
+      len = msg.length
+
+      return [msg] if len < STREAM_MAX_LEN
+
+      div, mod = len.divmod(STREAM_MAX_LEN)
+      (mod > 0 ? (div + 1) : div).times.map do |start|
+        msg[start * STREAM_MAX_LEN, STREAM_MAX_LEN]
+      end
     end
 
   end
