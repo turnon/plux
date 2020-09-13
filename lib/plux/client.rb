@@ -14,6 +14,7 @@ module Plux
     end
 
     def close
+      puts(Parser::LAST_MSG)
       @writer.close
     end
   end

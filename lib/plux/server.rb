@@ -74,9 +74,13 @@ module Plux
               IO.select([socket])
               retry
             end
-            par.decode(stream).each do |msg|
-              worker.work(msg)
-            end
+
+            msgs = par.decode(stream)
+            last_msg = msgs.pop
+
+            msgs.each{ |msg| worker.work(msg) }
+            break if last_msg == Parser::LAST_MSG
+            worker.work(last_msg)
           end
           socket.close
         end

@@ -4,6 +4,7 @@ module Plux
     SYSTEM = 36
     SEPERATOR = '.'.freeze
     STREAM_MAX_LEN = 4096
+    LAST_MSG = ''.freeze
 
     def initialize
       @broken = ''
