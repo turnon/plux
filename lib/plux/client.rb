@@ -4,18 +4,17 @@ module Plux
 
     def initialize(server_name)
       @server_name = server_name
-      UNIXSocket.open(Plux.server_file(server_name)) do |c|
-        reader, @writer = IO.pipe
-        c.send_io(reader)
-        reader.close
+      @writer = UNIXSocket.open(Plux.server_file(server_name))
+    end
+
+    def puts(msg)
+      Parser.encode(msg).each do |sub_msg|
+        @writer.write(sub_msg)
       end
     end
 
-    def puts(arg)
-      @writer.puts(arg)
-    end
-
     def close
+      puts(Parser::LAST_MSG)
       @writer.close
     end
   end

@@ -3,6 +3,8 @@ require "socket"
 require "plux/version"
 require "plux/server"
 require "plux/client"
+require "plux/parser"
+
 
 module Plux
 
