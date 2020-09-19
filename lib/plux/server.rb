@@ -1,3 +1,6 @@
+require "nio"
+require "plux/reactors"
+
 module Plux
 
   class Server
@@ -6,8 +9,9 @@ module Plux
     Active = {}
     at_exit{ Active.values.each(&:close) }
 
-    def initialize(name)
+    def initialize(name, thread: )
       @name = name
+      @thread = thread
     end
 
     def boot(block)
@@ -40,10 +44,8 @@ module Plux
         UNIXServer.open(Plux.server_file(name)) do |serv|
           parent.close
           worker = Class.new(&block).new
-          loop do
-            socket = serv.accept
-            Worker.new(socket, worker)
-          end
+          reactors = Reactors.new(@thread, worker)
+          loop{ reactors.register(serv.accept) }
         end
       end
 
@@ -62,31 +64,6 @@ module Plux
         File.delete(Plux.send(file, name))
       end
     end
-
-    class Worker
-      def initialize(socket, worker)
-        par = Parser.new
-        t = Thread.new do
-          loop do
-            begin
-              stream = socket.read_nonblock(Parser::STREAM_MAX_LEN)
-            rescue IO::WaitReadable
-              IO.select([socket])
-              retry
-            end
-
-            msgs = par.decode(stream)
-            last_msg = msgs.pop
-
-            msgs.each{ |msg| worker.work(msg) }
-            break if last_msg == Parser::LAST_MSG
-            worker.work(last_msg)
-          end
-          socket.close
-        end
-      end
-    end
-
   end
 
 end

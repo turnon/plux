@@ -21,9 +21,9 @@ Or install it yourself as:
 ## Usage
 
 ```ruby
-# start one and only process named 'abc',
+# start one and only process named 'abc', with 2 threads in it (1 thread if not specified),
 # no matter the code below is called how many times in whatever processes/threads
-server = Plux.worker(:abc) do
+server = Plux.worker(:abc, thread: 2) do
 
   # prepare resources like mq/db, to handle requests
   def initialize
@@ -36,8 +36,7 @@ server = Plux.worker(:abc) do
   end
 end
 
-# five threads will be started to handle these clients,
-# and finished once their counterparts call close
+# the 2 threads will handle these 5 clients
 5.times do |n|
   Thread.new do
     client = server.connect
