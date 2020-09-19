@@ -42,31 +42,8 @@ module Plux
         UNIXServer.open(Plux.server_file(name)) do |serv|
           parent.close
           worker = Class.new(&block).new
-          nio = NIO::Selector.new
-          newly_accepted = Queue.new
-          closed = []
-
-          Thread.new do
-            loop do
-              closed.size.times do
-                 nio.deregister(closed.pop)
-              end
-              newly_accepted.size.times do
-                socket = newly_accepted.pop
-                mon = nio.register(socket, :r)
-                mon.value = Worker.new(socket, worker)
-              end
-              nio.select do |m|
-                next if m.value.process
-                closed << m.io
-              end
-            end
-          end
-
-          loop do
-            newly_accepted << serv.accept
-            nio.wakeup
-          end
+          reactor = Reactor.new(worker)
+          loop{ reactor.register(serv.accept) }
         end
       end
 
@@ -83,6 +60,42 @@ module Plux
     def delete_server
       [:server_file, :pid_file].each do |file|
         File.delete(Plux.send(file, name))
+      end
+    end
+
+    class Reactor
+      def initialize(worker)
+        @worker = worker
+        @nio = NIO::Selector.new
+        @newly_accepted = Queue.new
+        @closed = []
+        run
+      end
+
+      def register(socket)
+        @newly_accepted << socket
+        @nio.wakeup
+      end
+
+      private
+
+      def run
+        Thread.new do
+          loop do
+            @closed.size.times do
+               @nio.deregister(@closed.pop)
+            end
+            @newly_accepted.size.times do
+              socket = @newly_accepted.pop
+              mon = @nio.register(socket, :r)
+              mon.value = Worker.new(socket, @worker)
+            end
+            @nio.select do |m|
+              next if m.value.process
+              @closed << m.io
+            end
+          end
+        end
       end
     end
 
