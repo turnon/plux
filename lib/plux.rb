@@ -32,8 +32,8 @@ module Plux
       File.join(dir, "#{server_name}.so")
     end
 
-    def worker(name, &block)
-      Server.new(name).boot(block)
+    def worker(name, thread: 1, &block)
+      Server.new(name, thread: thread).boot(block)
     end
   end
 

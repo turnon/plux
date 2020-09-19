@@ -1,4 +1,5 @@
 require "nio"
+require "plux/reactors"
 
 module Plux
 
@@ -8,8 +9,9 @@ module Plux
     Active = {}
     at_exit{ Active.values.each(&:close) }
 
-    def initialize(name)
+    def initialize(name, thread: )
       @name = name
+      @thread = thread
     end
 
     def boot(block)
@@ -42,8 +44,8 @@ module Plux
         UNIXServer.open(Plux.server_file(name)) do |serv|
           parent.close
           worker = Class.new(&block).new
-          reactor = Reactor.new(worker)
-          loop{ reactor.register(serv.accept) }
+          reactors = Reactors.new(@thread, worker)
+          loop{ reactors.register(serv.accept) }
         end
       end
 
@@ -62,69 +64,6 @@ module Plux
         File.delete(Plux.send(file, name))
       end
     end
-
-    class Reactor
-      def initialize(worker)
-        @worker = worker
-        @nio = NIO::Selector.new
-        @newly_accepted = Queue.new
-        @closed = []
-        run
-      end
-
-      def register(socket)
-        @newly_accepted << socket
-        @nio.wakeup
-      end
-
-      private
-
-      def run
-        Thread.new do
-          loop do
-            @closed.size.times do
-               @nio.deregister(@closed.pop)
-            end
-            @newly_accepted.size.times do
-              socket = @newly_accepted.pop
-              mon = @nio.register(socket, :r)
-              mon.value = Worker.new(socket, @worker)
-            end
-            @nio.select do |m|
-              next if m.value.process
-              @closed << m.io
-            end
-          end
-        end
-      end
-    end
-
-    class Worker
-      def initialize(socket, worker)
-        @parser = Parser.new
-        @socket = socket
-        @worker = worker
-      end
-
-      def process
-        10.times do
-          stream = @socket.read_nonblock(Parser::STREAM_MAX_LEN, exception: false)
-          return true if stream == :wait_readable
-
-          msgs = @parser.decode(stream)
-          last_msg = msgs.pop
-
-          msgs.each{ |msg| @worker.work(msg) }
-          if last_msg == Parser::LAST_MSG
-            @socket.close
-            return false
-          end
-          @worker.work(last_msg)
-        end
-        true
-      end
-    end
-
   end
 
 end
