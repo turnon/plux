@@ -2,26 +2,20 @@ module Plux
   class Reactors
     def initialize(count, worker)
       @lock = Mutex.new
-      @free_reactors = count.times.map{ Reactor.new(worker, self) }
-      @reactor_loops = @free_reactors.each_with_object({}){ |r, hash| hash[r] = 0 }
+      @reactor_loops = count.times.each_with_object({}) do |r, hash|
+        hash[Reactor.new(worker, self)] = 0
+      end
     end
 
     def register(socket)
       @lock.synchronize do
-        reactor = @free_reactors.shift || @reactor_loops.sort_by{ |_, v| v }.last.first
+        reactor = @reactor_loops.sort_by{ |_, v| v }.first.first
         reactor.register(socket)
       end
     end
 
-    def add_loop(reactor)
-      @lock.synchronize{ @reactor_loops[reactor] += 1 }
-    end
-
-    def free(reactor)
-      @lock.synchronize do
-        next if @free_reactors.detect{ |r| r == reactor }
-        @free_reactors.push(reactor)
-      end
+    def timer(reactor, duration)
+      @lock.synchronize{ @reactor_loops[reactor] += duration }
     end
 
     class Reactor
@@ -33,8 +27,6 @@ module Plux
         @newly_accepted = Queue.new
         @closed = []
 
-        @accepted_count = 0
-        @closed_count = 0
         run
       end
 
@@ -48,19 +40,22 @@ module Plux
       def run
         Thread.new do
           loop do
-            @closed_count += @closed.size.times{ @nio.deregister(@closed.pop) }
-            @reactors.free(self) if @closed_count > 0 && @closed_count == @accepted_count
+            @closed.size.times{ @nio.deregister(@closed.pop) }
 
-            @accepted_count += @newly_accepted.size.times do
+            @newly_accepted.size.times do
               socket = @newly_accepted.pop
               mon = @nio.register(socket, :r)
               mon.value = Worker.new(socket, @worker)
             end
 
-            @reactors.add_loop(self) if @nio.select do |m|
+            start = Time.now.to_i
+
+            next unless @nio.select do |m|
               next if m.value.process
               @closed << m.io
             end
+
+            @reactors.timer(self, Time.now.to_i - start)
           end
         end
       end
