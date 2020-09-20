@@ -19,15 +19,17 @@ module Plux
     end
 
     class Reactor
-      def initialize(worker, reactors)
+      def initialize(count, worker)
         @worker = worker
-        @reactors = reactors
+        @msg_q = Queue.new
+        @count = count
 
         @nio = NIO::Selector.new
         @newly_accepted = Queue.new
         @closed = []
 
-        run
+        receive
+        process
       end
 
       def register(socket)
@@ -37,7 +39,7 @@ module Plux
 
       private
 
-      def run
+      def receive
         Thread.new do
           loop do
             @closed.size.times{ @nio.deregister(@closed.pop) }
@@ -45,27 +47,31 @@ module Plux
             @newly_accepted.size.times do
               socket = @newly_accepted.pop
               mon = @nio.register(socket, :r)
-              mon.value = Worker.new(socket, @worker)
+              mon.value = Worker.new(socket, @msg_q)
             end
 
-            start = Time.now.to_i
-
-            next unless @nio.select do |m|
+            @nio.select do |m|
               next if m.value.process
               @closed << m.io
             end
+          end
+        end
+      end
 
-            @reactors.timer(self, Time.now.to_i - start)
+      def process
+        @count.times.each do
+          Thread.new do
+            loop{ @worker.work(@msg_q.deq) }
           end
         end
       end
     end
 
     class Worker
-      def initialize(socket, worker)
+      def initialize(socket, q)
         @parser = Parser.new
         @socket = socket
-        @worker = worker
+        @q = q
       end
 
       def process
@@ -75,12 +81,12 @@ module Plux
         msgs = @parser.decode(stream)
         last_msg = msgs.pop
 
-        msgs.each{ |msg| @worker.work(msg) }
+        msgs.each{ |msg| @q << msg }
         if last_msg == Parser::LAST_MSG
           @socket.close
           return false
         end
-        @worker.work(last_msg)
+        @q << last_msg
 
         true
       end

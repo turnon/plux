@@ -44,8 +44,8 @@ module Plux
         UNIXServer.open(Plux.server_file(name)) do |serv|
           parent.close
           worker = Class.new(&block).new
-          reactors = Reactors.new(@thread, worker)
-          loop{ reactors.register(serv.accept) }
+          reactor = Reactors::Reactor.new(@thread, worker)
+          loop{ reactor.register(serv.accept) }
         end
       end
 
