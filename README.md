@@ -25,7 +25,7 @@ Or install it yourself as:
 # no matter the code below is called how many times in whatever processes/threads
 server = Plux.worker(:abc, thread: 2) do
 
-  # prepare resources like mq/db, to handle requests
+  # prepare thread-safe resources like mq/db, to handle requests
   def initialize
     # @db = ...
   end
@@ -36,11 +36,12 @@ server = Plux.worker(:abc, thread: 2) do
   end
 end
 
-# the 2 threads will handle these 5 clients
+# clients connect, send msg, and close concurrently
 5.times do |n|
   Thread.new do
     client = server.connect
-    client.puts "hello #{n}"
+    client.puts "hello"
+    client.puts "my name is #{n}"
     client.close
   end
 end
