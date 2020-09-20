@@ -69,20 +69,19 @@ module Plux
       end
 
       def process
-        10.times do
-          stream = @socket.read_nonblock(Parser::STREAM_MAX_LEN, exception: false)
-          return true if stream == :wait_readable
+        stream = @socket.read_nonblock(Parser::STREAM_MAX_LEN, exception: false)
+        return true if stream == :wait_readable
 
-          msgs = @parser.decode(stream)
-          last_msg = msgs.pop
+        msgs = @parser.decode(stream)
+        last_msg = msgs.pop
 
-          msgs.each{ |msg| @worker.work(msg) }
-          if last_msg == Parser::LAST_MSG
-            @socket.close
-            return false
-          end
-          @worker.work(last_msg)
+        msgs.each{ |msg| @worker.work(msg) }
+        if last_msg == Parser::LAST_MSG
+          @socket.close
+          return false
         end
+        @worker.work(last_msg)
+
         true
       end
     end
