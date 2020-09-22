@@ -47,6 +47,31 @@ end
 end
 ```
 
+Also, you can boot multiple servers(processes) with same logic:
+
+```ruby
+class AwesomeServer < Plux::Engine
+  # prepare thread-safe resources like mq/db, to handle requests
+  def prepare
+    # @db = ...
+  end
+
+  # threads call this method to deal with clients' message
+  def process(msg)
+    # @db << parse(msg)
+  end
+end
+
+a = AwesomeServer.new(:a)
+b = AwesomeServer.new(:b)
+c = AwesomeServer.new(:c, thread: 4)
+
+a_client = a.connect
+b_client = b.connect
+c_client = c.connect
+c_client_2 = c.connect
+```
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.

@@ -4,6 +4,7 @@ require "plux/version"
 require "plux/server"
 require "plux/client"
 require "plux/parser"
+require "plux/engine"
 
 
 module Plux
@@ -38,4 +39,5 @@ module Plux
   end
 
   FileUtils.mkdir_p(self.dir)
+
 end

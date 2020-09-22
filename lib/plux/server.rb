@@ -43,7 +43,7 @@ module Plux
         child.close
         UNIXServer.open(Plux.server_file(name)) do |serv|
           parent.close
-          worker = Class.new(&block).new
+          worker = Proc === block ? Class.new(&block).new : block
           reactor = Reactor.new(@thread, worker)
           loop{ reactor.register(serv.accept) }
         end
