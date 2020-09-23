@@ -42,7 +42,7 @@ module Plux
     def process
       @count.times.each do
         Thread.new do
-          loop{ @worker.work(@msg_q.deq) }
+          loop{ @worker.process(@msg_q.deq) }
         end
       end
     end

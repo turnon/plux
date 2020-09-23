@@ -34,7 +34,8 @@ module Plux
     end
 
     def worker(name, thread: 1, &block)
-      Server.new(name, thread: thread).boot(block)
+      worker = Class.new(&block).new
+      Server.new(name, thread: thread).boot(worker)
     end
   end
 

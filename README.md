@@ -26,12 +26,12 @@ Or install it yourself as:
 server = Plux.worker(:abc, thread: 2) do
 
   # prepare thread-safe resources like mq/db, to handle requests
-  def initialize
+  def prepare
     # @db = ...
   end
 
   # threads call this method to deal with clients' message
-  def work(msg)
+  def process(msg)
     # @db << parse(msg)
   end
 end

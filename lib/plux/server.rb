@@ -14,9 +14,9 @@ module Plux
       @thread = thread
     end
 
-    def boot(block)
+    def boot(worker)
       Plux.lock_pid_file(name) do |file|
-        start_server_if_not_pid(file, block)
+        start_server_if_not_pid(file, worker)
       end
       self
     end
@@ -31,7 +31,7 @@ module Plux
 
     private
 
-    def start_server_if_not_pid(file, block)
+    def start_server_if_not_pid(file, worker)
       @pid = file.read.to_i
       return unless pid == 0
 
@@ -43,7 +43,7 @@ module Plux
         child.close
         UNIXServer.open(Plux.server_file(name)) do |serv|
           parent.close
-          worker = Proc === block ? Class.new(&block).new : block
+          worker.prepare
           reactor = Reactor.new(@thread, worker)
           loop{ reactor.register(serv.accept) }
         end
